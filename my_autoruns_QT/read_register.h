@@ -31,7 +31,12 @@ map<char*, LPBYTE> read_value_data(HKEY root_key, LPCUTSTR sub_key)
 
     map<char*, LPBYTE> map_value_data;
 
-    if (ERROR_SUCCESS == RegOpenKeyEx(root_key, sub_key, 0, KEY_READ, &key_handle)) {
+    REGSAM samDesired;
+
+    //if(root_key== HKEY_LOCAL_MACHINE && sub_key =="Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run" ) samDseired = KEY_WOW64_64KEY;
+    //else 
+
+    if (ERROR_SUCCESS == RegOpenKeyEx(root_key, sub_key, 0, KEY_READ|KEY_WOW64_64KEY, &key_handle)) {
         DWORD dwIndex = 0, NameSize, NameCnt, NameMaxLen, Type;
         DWORD KeySize, KeyCnt, KeyMaxLen, DateSize, MaxDateLen;
         if (ERROR_SUCCESS == RegQueryInfoKey(key_handle, NULL, NULL, 0, &KeyCnt, &KeyMaxLen, NULL, &NameCnt, &NameMaxLen, &MaxDateLen, NULL, NULL)) {
@@ -64,6 +69,70 @@ map<char*, LPBYTE> read_value_data(HKEY root_key, LPCUTSTR sub_key)
 
     return map_value_data;
 }
+
+//msdn https://docs.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryvalueexa
+LPBYTE read_description(HKEY root_key, LPCSTR sub_key)
+{
+	HKEY key_handle;
+	DWORD lpType = 0;
+	LPBYTE lpData = NULL;
+	DWORD lpcbData = 0;
+
+	long dwRet;
+	dwRet = RegOpenKeyEx(root_key, 
+                        sub_key, 
+                        0, 
+                        KEY_QUERY_VALUE, 
+                        &key_handle);
+                        
+	if (dwRet == ERROR_SUCCESS)
+	{
+        RegQueryValueEx(key_handle, (LPCSTR)("Description"), 0, &lpType, lpData, &lpcbData);
+		lpData = (LPBYTE)malloc(lpcbData);
+        dwRet = RegQueryValueEx(key_handle, (LPCSTR)("Description"), 0, &lpType, lpData, &lpcbData);
+		RegCloseKey(key_handle);
+	}
+
+	//cout << lpData << endl;
+	return lpData;
+}
+
+
+//参考github
+void format_imagepath(QString* value)
+{
+    /*
+        注册表中的value可能会带有命令参数、系统变量等，该函数将其标准化为一个文件路径（QString）
+        */
+    if (value->indexOf("@") == 0)
+    {
+        *value = value->split("@")[1];
+        *value = value->split(",-")[0];
+    }
+    if (value->indexOf(" -") >= 0)    //部分ImagePath后跟有 -[command],需要剔除
+        *value = value->split(" -")[0];
+    if (value->indexOf(" /") >= 0)    //部分ImagePath后跟有 /[command],需要剔除
+        *value = value->split(" /")[0];
+    if(value->indexOf("\"") >= 0)     //部分ImagePath已被""包括
+        *value = value->split("\"")[1];
+    if(value->contains("%systemroot%", Qt::CaseInsensitive))
+        *value = value->replace(value->indexOf("%systemroot%", 0, Qt::CaseInsensitive), 12, "C:\\Windows");
+    if(value->contains("\\systemroot", Qt::CaseInsensitive))
+        *value = value->replace(value->indexOf("\\systemroot", 0, Qt::CaseInsensitive), 11, "C:\\Windows");
+    if(value->contains("%windir%", Qt::CaseInsensitive))
+        *value = value->replace(value->indexOf("%windir%", 0, Qt::CaseInsensitive), 8, "C:\\Windows");
+    if(value->contains("\\??\\", Qt::CaseInsensitive))
+        *value = value->replace(value->indexOf("\\??\\"), 4, "");
+    if(!value->contains(":"))
+    {
+        if(value->contains("system32", Qt::CaseInsensitive))
+            *value = value->replace(value->indexOf("system32", 0, Qt::CaseInsensitive), 8, "c:\\Windows\\System32");
+        if(value->contains("syswow64", Qt::CaseInsensitive))
+            *value = value->replace(value->indexOf("syswow64", 0, Qt::CaseInsensitive), 8, "c:\\Windows\\SysWOW64");
+    }
+}
+
+
 
 
 #endif // READ_REGISTER_H
