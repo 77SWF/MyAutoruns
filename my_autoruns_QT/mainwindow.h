@@ -34,12 +34,14 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void set_logon_table();
+    void set_services_table();
     void write_item_to_table(int row_index,QString entry,QString description,QString publisher,QString imagepath);
     void write_header_to_table(int row_index,QString root_key,QString sub_key);
 
 private slots:
     void on_logon_clicked();
     void on_Services_clicked();
+
 
 private:
     Ui::MainWindow *ui;

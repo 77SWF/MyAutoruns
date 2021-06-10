@@ -25,26 +25,24 @@
 using namespace std;
 
 //msdn reg函数范例：https://docs.microsoft.com/zh-cn/windows/win32/api/winreg/nf-winreg-regopenkeyexa
+//读某键下的所有value，返回map<值名，数据>
 map<char*, LPBYTE> read_value_data(HKEY root_key, LPCUTSTR sub_key)
 {
     HKEY key_handle;
 
     map<char*, LPBYTE> map_value_data;
 
-    REGSAM samDesired;
-
-    //if(root_key== HKEY_LOCAL_MACHINE && sub_key =="Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run" ) samDseired = KEY_WOW64_64KEY;
-    //else 
-
-    if (ERROR_SUCCESS == RegOpenKeyEx(root_key, sub_key, 0, KEY_READ|KEY_WOW64_64KEY, &key_handle)) {
+    if (ERROR_SUCCESS == RegOpenKeyEx(root_key, sub_key, 0, KEY_READ|KEY_WOW64_64KEY, &key_handle))
+    {
         DWORD dwIndex = 0, NameSize, NameCnt, NameMaxLen, Type;
         DWORD KeySize, KeyCnt, KeyMaxLen, DateSize, MaxDateLen;
-        if (ERROR_SUCCESS == RegQueryInfoKey(key_handle, NULL, NULL, 0, &KeyCnt, &KeyMaxLen, NULL, &NameCnt, &NameMaxLen, &MaxDateLen, NULL, NULL)) {
-            //成功查到这个自启动的键，遍历下面所有子键，用NameCNt
+        if (ERROR_SUCCESS == RegQueryInfoKey(key_handle, NULL, NULL, 0, &KeyCnt, &KeyMaxLen, NULL, &NameCnt, &NameMaxLen, &MaxDateLen, NULL, NULL))
+        {
+            //成功查到这个自启动的键，遍历下面所有value，用NameCNt
             for (DWORD dwIndex = 0; dwIndex < NameCnt; dwIndex++)
             {
-                DateSize = MaxDateLen + 1;//子键的值最大长度
-                NameSize = NameMaxLen + 1;//子键名字最大长度
+                DateSize = MaxDateLen + 1;//数据最大长度
+                NameSize = NameMaxLen + 1;//值名最大长度
                 //值名，数据
                 char* value_name = (char*)malloc(NameSize);
                 LPBYTE value_data = (LPBYTE)malloc(DateSize);//LPBYTE也是char *
@@ -59,6 +57,77 @@ map<char*, LPBYTE> read_value_data(HKEY root_key, LPCUTSTR sub_key)
             }
 
         }
+        else
+        {
+            cout << "RegQueryInfoKey fail！" << endl;
+        }
+    }
+    else {
+        cout << "RegOpenKeyEx fail!" << endl;
+    }
+
+    return map_value_data;
+}
+
+//读子键下所有子键，返回map<数字, char*子键名>
+map<int, char*> read_subkey_name(HKEY root_key, LPCTSTR sub_key)
+{
+    //打开
+    HKEY key_handle;
+    map<int, char*> subitem;//0:子键名 1:子键名？存这个主键/可能自启动路径下的所有子键名？
+    int len = 0;
+    cout<< "begin read"<<endl;
+
+    //如果读主键root_key下的子键sub_key打开成功
+    if (ERROR_SUCCESS == RegOpenKeyEx(
+        root_key, 
+        sub_key, 
+        0, 
+        KEY_READ, 
+        &key_handle))
+    {
+        cout<<"read reg"<<endl;
+        DWORD dwIndex = 0, NameSize, NameCnt, NameMaxLen, Type;
+        DWORD KeySize, KeyCnt, KeyMaxLen, DateSize, MaxDateLen;
+
+        //如果成功查询打开的子键，下的数量信息
+        if (ERROR_SUCCESS == RegQueryInfoKey(
+            key_handle, 
+            NULL, 
+            NULL, 
+            0, 
+            &KeyCnt, 
+            &KeyMaxLen, 
+            NULL, 
+            &NameCnt, 
+            &NameMaxLen, 
+            &MaxDateLen, 
+            NULL, 
+            NULL)) 
+        {
+            //遍历子键下所有子键
+            for (DWORD dwIndex = 0; dwIndex < KeyCnt; dwIndex++)
+            {
+                KeySize = KeyMaxLen + 1;//子键名称最大长度+1
+                char* szKeyName = (char*)malloc(KeySize);//子键名字符串 开一个位置
+
+                //打开的那6个注册表之一的句柄，句柄对应的是这个键下的一列子键，第dwIndex个子键(0开始)
+                //szKeyName存第dwIndex个子键的名字，子键名长度KeySize 为什么加&？
+                RegEnumKeyEx(
+                    key_handle, 
+                    dwIndex, 
+                    szKeyName, 
+                    &KeySize, 
+                    NULL, 
+                    NULL, 
+                    NULL, 
+                    NULL);
+
+                subitem[len] = szKeyName;
+                len++;
+            }
+        }
+        //读不到子键
         else {
             cout << "读取子键失败！" << endl;
         }
@@ -66,39 +135,13 @@ map<char*, LPBYTE> read_value_data(HKEY root_key, LPCUTSTR sub_key)
     else {
         cout << "打开注册表失败！" << endl;
     }
+    RegCloseKey(key_handle);//关闭句柄
 
-    return map_value_data;
-}
-
-//msdn https://docs.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryvalueexa
-LPBYTE read_description(HKEY root_key, LPCSTR sub_key)
-{
-	HKEY key_handle;
-	DWORD lpType = 0;
-	LPBYTE lpData = NULL;
-	DWORD lpcbData = 0;
-
-	long dwRet;
-	dwRet = RegOpenKeyEx(root_key, 
-                        sub_key, 
-                        0, 
-                        KEY_QUERY_VALUE, 
-                        &key_handle);
-                        
-	if (dwRet == ERROR_SUCCESS)
-	{
-        RegQueryValueEx(key_handle, (LPCSTR)("Description"), 0, &lpType, lpData, &lpcbData);
-		lpData = (LPBYTE)malloc(lpcbData);
-        dwRet = RegQueryValueEx(key_handle, (LPCSTR)("Description"), 0, &lpType, lpData, &lpcbData);
-		RegCloseKey(key_handle);
-	}
-
-	//cout << lpData << endl;
-	return lpData;
+    return subitem;
 }
 
 
-//参考github
+//refer
 void format_imagepath(QString* value)
 {
     /*

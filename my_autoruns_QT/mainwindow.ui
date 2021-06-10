@@ -135,30 +135,69 @@
      </property>
     </column>
    </widget>
-   <widget class="QPushButton" name="Logon">
+   <widget class="QPushButton" name="logon">
     <property name="geometry">
      <rect>
       <x>10</x>
       <y>0</y>
       <width>80</width>
-      <height>35</height>
+      <height>41</height>
      </rect>
     </property>
     <property name="text">
-     <string>logon</string>
+     <string>Logon</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="Services">
+   <widget class="QPushButton" name="services">
     <property name="geometry">
      <rect>
       <x>110</x>
       <y>0</y>
       <width>101</width>
-      <height>31</height>
+      <height>41</height>
      </rect>
     </property>
     <property name="text">
-     <string>PushButton</string>
+     <string>Services</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="drivers">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>-1</y>
+      <width>80</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Drivers</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="schedule_task">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>0</y>
+      <width>80</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Scheduled Tasks</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="dlls">
+    <property name="geometry">
+     <rect>
+      <x>430</x>
+      <y>0</y>
+      <width>80</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>DDLs</string>
     </property>
    </widget>
   </widget>
