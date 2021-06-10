@@ -11,6 +11,7 @@
 #include <QFileInfo>
 #include <QFileIconProvider>
 #include <QDateTime>
+#include <stdlib.h>
 
 #include <QString>
 
@@ -56,9 +57,9 @@ MainWindow::MainWindow(QWidget *parent)
     ui->autoruns_table->setColumnWidth(5, 180);
 
     //logon自启动项
-    set_logon_table();
+    //set_logon_table();
 
-    //set_services_table();
+    set_services_table();
 }
 
 MainWindow::~MainWindow()
@@ -168,7 +169,6 @@ void MainWindow::set_services_table()
     map<int, char*> map_int_subkey_name = read_subkey_name(root_key,sub_key);
     cout<<"end"<<endl;
 
-    //遍历所有服务子键map_int_subkey_name
     int row_index = ui->autoruns_table->rowCount();
     cout<<row_index<<endl;
     ui->autoruns_table->setRowCount(row_index + 1);
@@ -180,36 +180,82 @@ void MainWindow::set_services_table()
     row_index++;
     ui->autoruns_table->setRowCount(row_index + 1);
 
+    //遍历所有服务子键：map_int_subkey_name
     string service_subkey_name,new_service_subkey;
     for (map<int, char*>::iterator it = map_int_subkey_name.begin(); it != map_int_subkey_name.end(); ++it)
     {
-        
-        service_subkey_name = it->second;//子键名，char*类型
-        //完整子键
+        //子键名，char*可直接转string
+        service_subkey_name = it->second;
+        //完整子键,每个service_subkey对应一个服务
         new_service_subkey = "SYSTEM\\CurrentControlSet\\Services\\" + service_subkey_name;
-        
-        //HKLM下的service下的具体子键，每个service_subkey对应一个服务
-        LPCTSTR service_subkey;
+        LPCTSTR service_subkey;//new_service_subkey类型转换
         //错误service_subkey = ("SYSTEM\\CurrentControlSet\\Services\\" + service_subkey_name).c_str();
         //测试成功
-        //service_subkey= "SYSTEM\\CurrentControlSet\\Services\\AJRouter";
-        service_subkey = new_service_subkey.c_str();
-
-        
+        //service_subkey= "SYSTEM\\CurrentControlSet\\Services\\acpitime";
+        service_subkey = new_service_subkey.c_str();//成功
 
         //每个服务子键下的所有值：map<值名,数据>
         map<char*,LPBYTE> map_service_value_data;
         map_service_value_data = read_value_data(root_key,service_subkey);
 
         /*
-            如果是用户态服务（16/32），则继续获取名字为 `Start` 的值
-            若start的数据为2，表示该服务被设置成自启动
-            遍历map_service_value_data，找->first=Type Start Imagepath等的->second
+            Type=16/32（>=16）   ：是用户态服务；
+            Type=1/2/4/8(<16)：内核态驱动服务
+            若start的数据为2，表示该服务被设置成自启动,但不作为过滤条件
         */
-        
-        if(!map_service_value_data.empty())
+        const char * value_name_Type = "Type";
+        const char * value_name_Description = "Description";
+        const char * value_name_ImagePath = "ImagePath";
+        const char * value_name_Start = "Start";
+        QString description,imagepath,type,verify_result;
+
+        //非空，遍历每个服务子键下所有value
+        while(!map_service_value_data.empty())
         {
-            cout<<"not empty!"<<endl;
+            //查描述
+            if(strcmp((char*)map_service_value_data.begin()->first,value_name_Description) == 0)
+            {
+                LPBYTE data = (LPBYTE)map_service_value_data.begin()->second;
+                description = LPBYTE_to_QString(data);
+            }
+            
+            //查路径
+            if(strcmp((char*)map_service_value_data.begin()->first,value_name_ImagePath) == 0)
+            {
+                LPBYTE data = (LPBYTE)map_service_value_data.begin()->second;
+                imagepath = LPBYTE_to_QString(data);
+                //标准化可执行文件路径
+                format_imagepath(&imagepath);
+            }
+
+            //查Type
+            if(strcmp((char*)map_service_value_data.begin()->first,value_name_Type) == 0)
+            {
+
+                //LPBYTE->QString,可与int比较大小
+                LPBYTE type_lpbyte = (LPBYTE)map_service_value_data.begin()->second;
+                type = LPBYTE_to_QString(type_lpbyte);
+                //string type_str = type_qstr.toStdString(); // \001形式
+                //int type_int = stoi(type_str); 异常
+                //type_str = "0"+type_str.substr(1, type_str.length() -1);// 0001形式
+                //const char * type_char = type_str.data();
+            }
+            map_service_value_data.erase(map_service_value_data.begin());//删除map第一项
+        }
+
+        if(type >= 16) //服务
+        {
+            //签名验证结果
+            bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
+            if(is_or_not_verified) verify_result = "Verified";
+            else verify_result = "Not Verified";
+
+            QString entry = QString::fromStdString(service_subkey_name);
+
+            write_item_to_table(row_index,entry,description,verify_result,imagepath);
+            row_index++;
+            ui->autoruns_table->setRowCount(row_index + 1);
+
         }
 
         /*
@@ -316,4 +362,7 @@ void MainWindow::on_logon_clicked()
 
 void MainWindow::on_Services_clicked()
 {
+    ui->autoruns_table->clearContents();
+    ui->autoruns_table->setRowCount(0);
+    set_services_table();
 }
