@@ -32,11 +32,27 @@ map<char*, LPBYTE> read_value_data(HKEY root_key, LPCUTSTR sub_key)
 
     map<char*, LPBYTE> map_value_data;
 
-    if (ERROR_SUCCESS == RegOpenKeyEx(root_key, sub_key, 0, KEY_READ|KEY_WOW64_64KEY, &key_handle))
+    if (ERROR_SUCCESS == RegOpenKeyEx(
+        root_key, sub_key, 
+        0, 
+        KEY_READ|KEY_WOW64_64KEY, //重定向处理
+        &key_handle))
     {
         DWORD dwIndex = 0, NameSize, NameCnt, NameMaxLen, Type;
         DWORD KeySize, KeyCnt, KeyMaxLen, DateSize, MaxDateLen;
-        if (ERROR_SUCCESS == RegQueryInfoKey(key_handle, NULL, NULL, 0, &KeyCnt, &KeyMaxLen, NULL, &NameCnt, &NameMaxLen, &MaxDateLen, NULL, NULL))
+        if (ERROR_SUCCESS == RegQueryInfoKey(
+            key_handle, 
+            NULL, 
+            NULL, 
+            0, 
+            &KeyCnt, 
+            &KeyMaxLen, 
+            NULL, 
+            &NameCnt, 
+            &NameMaxLen, 
+            &MaxDateLen, 
+            NULL, 
+            NULL))
         {
             //成功查到这个自启动的键，遍历下面所有value，用NameCNt
             for (DWORD dwIndex = 0; dwIndex < NameCnt; dwIndex++)
@@ -49,7 +65,15 @@ map<char*, LPBYTE> read_value_data(HKEY root_key, LPCUTSTR sub_key)
 
                 //读到的东西(打开句柄，找第i个下面的子键)
                 //取值名字、长度、类型、数据和数据长度存到变量里
-                RegEnumValue(key_handle, dwIndex, value_name, &NameSize, NULL, &Type, value_data, &DateSize);
+                RegEnumValue(
+                    key_handle, 
+                    dwIndex, 
+                    value_name, 
+                    &NameSize, 
+                    NULL, 
+                    &Type, 
+                    value_data, 
+                    &DateSize);
 
                 //值名：数据
                 map_value_data[value_name] = value_data;
@@ -74,7 +98,7 @@ map<int, char*> read_subkey_name(HKEY root_key, LPCTSTR sub_key)
 {
     //打开
     HKEY key_handle;
-    map<int, char*> subitem;//0:子键名 1:子键名？存这个主键/可能自启动路径下的所有子键名？
+    map<int, char*> subkey_names;//int:子键名
     int len = 0;
     cout<< "begin read"<<endl;
 
@@ -123,30 +147,34 @@ map<int, char*> read_subkey_name(HKEY root_key, LPCTSTR sub_key)
                     NULL, 
                     NULL);
 
-                subitem[len] = szKeyName;
+                subkey_names[len] = szKeyName;
                 len++;
             }
         }
         //读不到子键
-        else {
-            cout << "读取子键失败！" << endl;
+        else 
+        {
+            cout << "RegQueryInfoKey fail!" << endl;
         }
     }
-    else {
-        cout << "打开注册表失败！" << endl;
+    else 
+    {
+        cout << "RegOpenKeyEx fail!" << endl;
     }
+
     RegCloseKey(key_handle);//关闭句柄
 
-    return subitem;
+    return subkey_names;
 }
 
 
-//refer
+/*
+    注册表中的value imagepath 可能会带有命令参数、系统变量等
+    将其标准化为一个文件路径（QString）
+    */
 void format_imagepath(QString* value)
 {
-    /*
-        注册表中的value可能会带有命令参数、系统变量等，该函数将其标准化为一个文件路径（QString）
-        */
+
     if (value->indexOf("@") == 0)
     {
         *value = value->split("@")[1];

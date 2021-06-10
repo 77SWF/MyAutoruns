@@ -20,8 +20,11 @@ SOURCES += \
     mainwindow.cpp
 
 HEADERS += \
+    check_PE_signature.h \
+    get_PE_publisher.h \
     mainwindow.h \
     read_register.h \
+    read_register_service_drivers.h \
     str_convert.h
 
 FORMS += \
@@ -32,4 +35,5 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 LIBS += -lAdvapi32
+LIBS +=-lShlwapi
 DEFINES  -= UNICODE

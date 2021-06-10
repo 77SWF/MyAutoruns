@@ -59,12 +59,23 @@ MainWindow::MainWindow(QWidget *parent)
     //logon自启动项
     //set_logon_table();
 
-    set_services_table();
+    //时间测试
+    //LPCWSTR s = (LPCWSTR)"c:\\program files (x86)\\common files\\adobe\\adobe desktop common\\elevationmanager\\adobeupdateservice.exe";
+    //char* time = get_timestamp(s);
+    //qDebug()<<time;
+    
+    //set_services_table();
+    set_drivers_table();
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::set_schedule_task_table()
+{
+
 }
 
 //查找logon自启动项，显示到表中
@@ -245,6 +256,51 @@ void MainWindow::set_services_table()
 
         if(type >= 16) //服务
         {
+            /*
+                判断是否共享服务
+                判断服务子键下有无 `Parameters` 子键
+                若有，说明是共享服务，需要进一步获取真正的 `ImagePath` 代替在原服务子键下的值中取得的
+                不由上课讲的 `Type = 32` 是共享服务判断是因为查看注册表后，发现不只有这个类型的服务的可执行文件相同。
+            */
+            map<int, char*> map_subkeynames_under_servicekey = read_subkey_name(root_key,service_subkey);
+            for (map<int, char*>::iterator it = map_subkeynames_under_servicekey.begin(); it != map_subkeynames_under_servicekey.end(); ++it)
+            {
+                //子键名char*,可直接转string
+                string subkey_name,new_subkey,service_subkey_str;
+                subkey_name = it->second;
+                //LPCTSTR=LPCSTR=char*
+                service_subkey_str = service_subkey;
+                //是共享服务 更新路径和签名
+                if(subkey_name == "Parameters")
+                {
+                    new_subkey = service_subkey_str + "\\" + subkey_name;
+                    LPCTSTR para_subkey;
+                    para_subkey = new_subkey.c_str();
+
+                    //parameters子键下所有值-数据
+                    map<char*,LPBYTE> map_para_value_data;
+                    map_para_value_data = read_value_data(root_key,para_subkey);
+
+                    const char * value_name_ServiceDll = "ServiceDll";
+                    while(!map_para_value_data.empty())
+                    {
+                        //查ServiceDll值，更新路径
+                        if(strcmp((char*)map_para_value_data.begin()->first,value_name_ServiceDll) == 0)
+                        {
+                            LPBYTE data = (LPBYTE)map_para_value_data.begin()->second;
+                            imagepath = LPBYTE_to_QString(data);
+                            //标准化可执行文件路径
+                            format_imagepath(&imagepath);
+                            break;
+                        }
+                        map_para_value_data.erase(map_para_value_data.begin());//删除map第一项
+
+                    }
+                    break;
+                }
+
+            }
+
             //签名验证结果
             bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
             if(is_or_not_verified) verify_result = "Verified";
@@ -257,58 +313,158 @@ void MainWindow::set_services_table()
             ui->autoruns_table->setRowCount(row_index + 1);
 
         }
-
-        /*
-        if (type >= 16)//用==有错
-        {
-            //cout<<"16/32"<<endl;
-            LPBYTE description, imagepath;
-
-            QString description_qstr;
-            description = read_service_subkey_description(root_key,service_subkey);
-            description_qstr = LPBYTE_to_QString(description);
-            //dll
-            if(description_qstr.startsWith("@"))
-            {
-                bool dllDesSuc = 0;
-                PWSTR description_PWSTR;
-                if(S_OK == SHLoadIndirectString(description_qstr.toStdWString().c_str(),description_PWSTR,1024, NULL))
-                    dllDesSuc = 1;
-                else
-                    dllDesSuc = 0;
-                cout << *description_PWSTR;
-                //description_qstr = (dllDesSuc) ? QString::fromLocal8Bit(description_PWSTR) : "----------";
-            }
-
-            QString imagepath_qstr;
-            imagepath = read_service_subkey_imagepath(root_key, service_subkey);
-            imagepath_qstr = LPBYTE_to_QString((LPBYTE)map_int_subkey_name.begin()->second);
-            //标准化可执行文件路径
-            format_imagepath(&imagepath_qstr);
-
-            //签名验证结果
-            //只能用imagepath.toStdWString().c_str()，用QString_to_LPCWSTR()无效
-            //参数类型：LPCWSTR
-            bool is_or_not_verified = VerifyEmbeddedSignature(imagepath_qstr.toStdWString().c_str());
-            QString verify_result;
-            if(is_or_not_verified) verify_result = "Verified";
-            else verify_result = "Not Verified";
-
-
-
-            QString entry = QString::fromStdString(service_subkey_name);
-            qDebug()<<entry;
-
-            //cout<<"in row "<< row_index;
-            write_item_to_table(row_index,entry,"",verify_result,imagepath_qstr);
-            row_index++;
-            ui->autoruns_table->setRowCount(row_index + 1);
-            cout<<"end"<<endl;
-        }
-        */
     }
 
 }
+
+//和services几乎一样
+void MainWindow::set_drivers_table()
+{
+    HKEY root_key = HKEY_LOCAL_MACHINE;
+    LPCSTR sub_key = "SYSTEM\\CurrentControlSet\\Services";
+    cout<<"begin"<<endl;
+    map<int, char*> map_int_subkey_name = read_subkey_name(root_key,sub_key);
+    cout<<"end"<<endl;
+
+    int row_index = ui->autoruns_table->rowCount();
+    cout<<row_index<<endl;
+    ui->autoruns_table->setRowCount(row_index + 1);
+
+    //画表：注册表子键头部
+    QString root_key_str;
+    root_key_str = "HKLM";
+    write_header_to_table(row_index,root_key_str,sub_key);
+    row_index++;
+    ui->autoruns_table->setRowCount(row_index + 1);
+
+    //遍历所有服务子键：map_int_subkey_name
+    string service_subkey_name,new_service_subkey;
+    for (map<int, char*>::iterator it = map_int_subkey_name.begin(); it != map_int_subkey_name.end(); ++it)
+    {
+        //子键名，char*可直接转string
+        service_subkey_name = it->second;
+        //完整子键,每个service_subkey对应一个服务
+        new_service_subkey = "SYSTEM\\CurrentControlSet\\Services\\" + service_subkey_name;
+        LPCTSTR service_subkey;//new_service_subkey类型转换
+        service_subkey = new_service_subkey.c_str();//成功
+
+        //每个服务子键下的所有值：map<值名,数据>
+        map<char*,LPBYTE> map_service_value_data;
+        map_service_value_data = read_value_data(root_key,service_subkey);
+
+        /*
+            Type=16/32（>=16）   ：是用户态服务；
+            Type=1/2/4/8(<16)：内核态驱动服务
+            若start的数据为2，表示该服务被设置成自启动,但不作为过滤条件
+        */
+        const char * value_name_Type = "Type";
+        const char * value_name_Description = "Description";
+        const char * value_name_ImagePath = "ImagePath";
+        const char * value_name_Start = "Start";
+        QString description,imagepath,type,verify_result;
+
+        //非空，遍历每个服务子键下所有value
+        while(!map_service_value_data.empty())
+        {
+            //查描述
+            if(strcmp((char*)map_service_value_data.begin()->first,value_name_Description) == 0)
+            {
+                LPBYTE data = (LPBYTE)map_service_value_data.begin()->second;
+                description = LPBYTE_to_QString(data);
+            }
+            
+            //查路径
+            if(strcmp((char*)map_service_value_data.begin()->first,value_name_ImagePath) == 0)
+            {
+                LPBYTE data = (LPBYTE)map_service_value_data.begin()->second;
+                imagepath = LPBYTE_to_QString(data);
+                //标准化可执行文件路径
+                format_imagepath(&imagepath);
+            }
+
+            //查Type
+            if(strcmp((char*)map_service_value_data.begin()->first,value_name_Type) == 0)
+            {
+
+                //LPBYTE->QString,可与int比较大小
+                LPBYTE type_lpbyte = (LPBYTE)map_service_value_data.begin()->second;
+                type = LPBYTE_to_QString(type_lpbyte);
+                //string type_str = type_qstr.toStdString(); // \001形式
+                //int type_int = stoi(type_str); 异常
+                //type_str = "0"+type_str.substr(1, type_str.length() -1);// 0001形式
+                //const char * type_char = type_str.data();
+            }
+            map_service_value_data.erase(map_service_value_data.begin());//删除map第一项
+        }
+
+        if(type!= "" && type < 16) //内核态驱动
+        {
+
+            /*
+                判断是否共享服务
+                判断服务子键下有无 `Parameters` 子键
+                若有，说明是共享服务，需要进一步获取真正的 `ImagePath` 代替在原服务子键下的值中取得的
+                不由上课讲的 `Type = 32` 是共享服务判断是因为查看注册表后，发现不只有这个类型的服务的可执行文件相同。
+            */
+            /*  内核态无共享服务
+            map<int, char*> map_subkeynames_under_servicekey = read_subkey_name(root_key,service_subkey);
+            for (map<int, char*>::iterator it = map_subkeynames_under_servicekey.begin(); it != map_subkeynames_under_servicekey.end(); ++it)
+            {
+                //子键名char*,可直接转string
+                string subkey_name,new_subkey,service_subkey_str;
+                subkey_name = it->second;
+                //LPCTSTR=LPCSTR=char*
+                service_subkey_str = service_subkey;
+                //是共享服务 更新路径和签名
+                if(subkey_name == "Parameters")
+                {
+                    new_subkey = service_subkey_str + "\\" + subkey_name;
+                    LPCTSTR para_subkey;
+                    para_subkey = new_subkey.c_str();
+
+                    //parameters子键下所有值-数据
+                    map<char*,LPBYTE> map_para_value_data;
+                    map_para_value_data = read_value_data(root_key,para_subkey);
+
+                    const char * value_name_ServiceDll = "ServiceDll";
+                    while(!map_para_value_data.empty())
+                    {
+                        //查ServiceDll值，更新路径
+                        if(strcmp((char*)map_para_value_data.begin()->first,value_name_ServiceDll) == 0)
+                        {
+                            LPBYTE data = (LPBYTE)map_para_value_data.begin()->second;
+                            imagepath = LPBYTE_to_QString(data);
+                            //标准化可执行文件路径
+                            format_imagepath(&imagepath);
+                            break;
+                        }
+                        map_para_value_data.erase(map_para_value_data.begin());//删除map第一项
+
+                    }
+                    break;
+                }
+
+            }
+            */
+
+            //签名验证结果
+            bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
+            if(is_or_not_verified) verify_result = "Verified";
+            else verify_result = "Not Verified";
+
+            QString entry = QString::fromStdString(service_subkey_name);
+
+            write_item_to_table(row_index,entry,description,verify_result,imagepath);
+            row_index++;
+            ui->autoruns_table->setRowCount(row_index + 1);
+
+        }
+    }
+
+}
+
+
+
 
 // 行号:自启动项名，描述，签名者，可执行文件路径
 void MainWindow::write_item_to_table(int row_index,QString entry,QString description,QString publisher,QString imagepath)
@@ -360,9 +516,23 @@ void MainWindow::on_logon_clicked()
     set_logon_table();
 }
 
-void MainWindow::on_Services_clicked()
+void MainWindow::on_services_clicked()
 {
     ui->autoruns_table->clearContents();
     ui->autoruns_table->setRowCount(0);
     set_services_table();
+}
+
+void MainWindow::on_drivers_clicked()
+{
+    ui->autoruns_table->clearContents();
+    ui->autoruns_table->setRowCount(0);
+    set_drivers_table();
+}
+
+void MainWindow::on_schedule_task_clicked()
+{
+    ui->autoruns_table->clearContents();
+    ui->autoruns_table->setRowCount(0);
+    set_schedule_task_table();
 }

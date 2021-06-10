@@ -35,13 +35,18 @@ public:
     ~MainWindow();
     void set_logon_table();
     void set_services_table();
+    void set_drivers_table();
+    void set_schedule_task_table();
     void write_item_to_table(int row_index,QString entry,QString description,QString publisher,QString imagepath);
     void write_header_to_table(int row_index,QString root_key,QString sub_key);
 
 private slots:
     void on_logon_clicked();
-    void on_Services_clicked();
+    void on_services_clicked();
 
+    void on_drivers_clicked();
+
+    void on_schedule_task_clicked();
 
 private:
     Ui::MainWindow *ui;
