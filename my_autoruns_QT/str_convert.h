@@ -85,7 +85,7 @@ TCHAR *CharToWchar(const QString &str)
     TCHAR *buf = new TCHAR[len + 1];
 
     //MultiByteToWideChar(CP_ACP, 0, data, charLen, buf, len);
-    //!!!!!!!一定要注释掉！！我用的是多字节编码！！！！！！！！！！！
+    //!!!!!!!一定要注释掉！！我用的就是多字节编码！！！！！！！！！！！
 
     buf[len] = '\0';
 

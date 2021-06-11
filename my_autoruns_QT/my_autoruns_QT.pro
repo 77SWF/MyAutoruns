@@ -25,6 +25,7 @@ HEADERS += \
     mainwindow.h \
     read_register.h \
     read_register_service_drivers.h \
+    read_schedule_tasks.h \
     str_convert.h
 
 FORMS += \

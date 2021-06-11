@@ -5,6 +5,7 @@
 #include "str_convert.h"
 #include "check_PE_signature.h"
 #include "get_PE_publisher.h"
+#include "read_schedule_tasks.h"
 //#include "read_register_service_drivers.h"
 
 #include <QDebug>
@@ -65,7 +66,8 @@ MainWindow::MainWindow(QWidget *parent)
     //qDebug()<<time;
     
     //set_services_table();
-    set_drivers_table();
+    //set_drivers_table();
+    set_schedule_task_table();
 }
 
 MainWindow::~MainWindow()
@@ -73,9 +75,58 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+//使用的API：https://docs.microsoft.com/zh-cn/windows/win32/api/taskschd/nn-taskschd-itaskfolder
+//使用范例：https://docs.microsoft.com/zh-cn/search/?terms=ITaskService&scope=Desktop
+/*
+    为任务文件夹中的所有任务显示任务名称和状态：
+        1 初始化 COM 并设置常规 COM 安全性。
+        2 创建 ITaskService 对象：此对象允许连接到任务计划程序服务并访问特定的任务文件夹
+        3 获取包含所需信息的任务文件夹：使用 ITaskService：： GetFolder 方法获取文件夹。
+        4 获取文件夹中的任务集合：使用 ITaskFolder：： taskcontroller 方法获取任务 (IRegisteredTaskCollection) 的集合。
+        5 获取集合中的任务数，并枚举集合中的每个任务：使用 IRegisteredTaskCollection 的 Item 属性 获取 IRegisteredTask 实例。 每个实例都将包含集合中的任务。 然后，可以从每个已注册任务) (属性值显示信息。
+
+    递归读C:\Windows\System32\Tasks下的文件，但是结果与autoruns相比少了
+    如\Microsoft\Windows\CertificateServicesClient\UserTask的作业，尚未查到原理
+*/
 void MainWindow::set_schedule_task_table()
 {
+    map<char*, char*> map_taskpath_imagepath;
 
+    HRESULT hr = CoInitialize(NULL);
+    if( FAILED(hr) )
+    {
+        printf("\nCoInitializeEx failed: %x", hr );
+        return;
+    }
+
+    int row_index = ui->autoruns_table->rowCount();
+    ui->autoruns_table->setRowCount(row_index + 1);
+
+    map_taskpath_imagepath = read_schedule_task_folder(map_taskpath_imagepath);
+    while (!map_taskpath_imagepath.empty())
+    {
+        QString entry,imagepath;
+        entry = charstr_to_QString(map_taskpath_imagepath.begin()->first);
+        imagepath = charstr_to_QString(map_taskpath_imagepath.begin()->second);
+
+        //标准化可执行文件路径
+        format_imagepath(&imagepath);
+
+        bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
+        QString verify_result;
+        if(is_or_not_verified) verify_result = "Verified";
+        else verify_result = "Not Verified";
+
+        write_item_to_table(row_index,entry,"",verify_result,imagepath);
+        row_index++;
+        ui->autoruns_table->setRowCount(row_index + 1);
+
+        //删除第一个子键的<子键名，value>
+        map_taskpath_imagepath.erase(map_taskpath_imagepath.begin());
+    }
+
+    //取消COM初始化
+    //CoUninitialize();
 }
 
 //查找logon自启动项，显示到表中
