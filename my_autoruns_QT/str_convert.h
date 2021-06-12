@@ -71,6 +71,8 @@ char* QString2char(QString qstr)
 }
 */
 
+
+//没有使用 不知道有无效
 TCHAR *CharToWchar(const QString &str)
 
 {

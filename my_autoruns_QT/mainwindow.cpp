@@ -162,10 +162,14 @@ void MainWindow::set_schedule_task_table()
         //标准化可执行文件路径
         format_imagepath(&imagepath);
 
-        bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
         QString verify_result;
-        if(is_or_not_verified) verify_result = "Verified";
-        else verify_result = "Not Verified";
+        if (imagepath.endsWith("exe") )
+        {
+            bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
+            if(is_or_not_verified) verify_result = "Verified";
+            else verify_result = "Not Verified";
+        }
+        else verify_result = "";
 
         write_item_to_table(row_index,entry,"",verify_result,imagepath);
         row_index++;
@@ -235,13 +239,22 @@ void MainWindow::set_logon_table()
                 //qDebug() << imagepath;
                 //qDebug()<<entry;
 
-                //签名验证结果
+                //签名验证结果 只能验证exe
                 //只能用imagepath.toStdWString().c_str()，用QString_to_LPCWSTR()无效
                 //参数类型：LPCWSTR
-                bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
                 QString verify_result;
-                if(is_or_not_verified) verify_result = "Verified";
-                else verify_result = "Not Verified";
+                if (imagepath.endsWith("exe") )
+                {
+                    bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
+                    if(is_or_not_verified) verify_result = "Verified";
+                    else verify_result = "Not Verified";
+                }
+                else verify_result = "";
+
+
+                //测试另一种验证 无效
+                //bool re = verify(imagepath.toStdWString().c_str());
+                //qDebug()<<re;
 
                 //获得publisher
 
@@ -319,7 +332,7 @@ void MainWindow::set_services_table()
         const char * value_name_Description = "Description";
         const char * value_name_ImagePath = "ImagePath";
         const char * value_name_Start = "Start";
-        QString description,imagepath,type,verify_result;
+        QString description,imagepath,type;
 
         //非空，遍历每个服务子键下所有value
         while(!map_service_value_data.empty())
@@ -411,9 +424,14 @@ void MainWindow::set_services_table()
             }
 
             //签名验证结果
-            bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
-            if(is_or_not_verified) verify_result = "Verified";
-            else verify_result = "Not Verified";
+            QString verify_result;
+            if (imagepath.endsWith("exe") )
+            {
+                bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
+                if(is_or_not_verified) verify_result = "Verified";
+                else verify_result = "Not Verified";
+            }
+            else verify_result = "";
 
             QString entry = QString::fromStdString(service_subkey_name);
 
@@ -562,9 +580,13 @@ void MainWindow::set_drivers_table()
             */
 
             //签名验证结果
-            bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
-            if(is_or_not_verified) verify_result = "Verified";
-            else verify_result = "Not Verified";
+            if (imagepath.endsWith("exe") )
+            {
+                bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
+                if(is_or_not_verified) verify_result = "Verified";
+                else verify_result = "Not Verified";
+            }
+            else verify_result = "";
 
             QString entry = QString::fromStdString(service_subkey_name);
 
