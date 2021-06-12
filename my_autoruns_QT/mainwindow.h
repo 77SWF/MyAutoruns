@@ -37,6 +37,7 @@ public:
     void set_services_table();
     void set_drivers_table();
     void set_schedule_task_table();
+    void set_dlls_table();
     void write_item_to_table(int row_index,QString entry,QString description,QString publisher,QString imagepath);
     void write_header_to_table(int row_index,QString root_key,QString sub_key);
 
@@ -47,6 +48,8 @@ private slots:
     void on_drivers_clicked();
 
     void on_schedule_task_clicked();
+
+    void on_dlls_clicked();
 
 private:
     Ui::MainWindow *ui;

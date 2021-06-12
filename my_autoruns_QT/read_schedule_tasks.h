@@ -204,7 +204,7 @@ map<char*, char*> read_schedule_task_folder(map<char*, char*> *map_taskpath_imag
     if( FAILED(hr) )
     {
         printf("\nCoInitializeEx failed: %x", hr );
-        CoUninitialize();
+        //CoUninitialize();
         return *map_taskpath_imagepath;
     }
     
@@ -222,13 +222,6 @@ map<char*, char*> read_schedule_task_folder(map<char*, char*> *map_taskpath_imag
         NULL,
         0,
         NULL);
-
-    if( FAILED(hr) )
-    {
-        printf("\nCoInitializeSecurity failed: %x", hr );
-        //CoUninitialize();
-        return *map_taskpath_imagepath;
-    }
 
     //  ------------------------------------------------------
     //  Create an instance of the Task Service. 
@@ -268,7 +261,7 @@ map<char*, char*> read_schedule_task_folder(map<char*, char*> *map_taskpath_imag
     if( FAILED(hr) )
     {
         printf("Cannot get Root Folder pointer: %x", hr );
-        CoUninitialize();
+        //CoUninitialize();
         return *map_taskpath_imagepath;
     }
 

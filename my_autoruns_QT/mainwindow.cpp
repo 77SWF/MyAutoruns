@@ -59,16 +59,17 @@ MainWindow::MainWindow(QWidget *parent)
     ui->autoruns_table->setColumnWidth(5, 180);
 
     //logon自启动项
-    //set_logon_table();
+    set_logon_table();
 
     //时间测试
     //LPCWSTR s = (LPCWSTR)"c:\\program files (x86)\\common files\\adobe\\adobe desktop common\\elevationmanager\\adobeupdateservice.exe";
     //char* time = get_timestamp(s);
     //qDebug()<<time;
     
-    set_services_table();
+    //set_services_table();
     //set_drivers_table();
-    //set_schedule_task_table();
+    //set_schedule_task_table(); 
+    //set_dlls_table();
 }
 
 MainWindow::~MainWindow()
@@ -76,9 +77,59 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-//使用的API：https://docs.microsoft.com/zh-cn/windows/win32/api/taskschd/nn-taskschd-itaskfolder
-//使用范例：https://docs.microsoft.com/zh-cn/search/?terms=ITaskService&scope=Desktop
+//和set_logon_table()相近
+void MainWindow::set_dlls_table()
+{
+    HKEY HKLM_root_key = HKEY_LOCAL_MACHINE;//HKLM
+    LPCSTR sub_key = "System\\CurrentControlSet\\Control\\Session Manager\\KnownDLLs";
+
+    int row_index = ui->autoruns_table->rowCount();
+    ui->autoruns_table->setRowCount(row_index + 1);
+
+    map<char*, LPBYTE> map_value_data = read_value_data(HKLM_root_key, sub_key);
+
+    //画表：注册表子键头部
+    if(!map_value_data.empty())
+    {
+        QString root_key_str;
+        root_key_str = "HKLM";
+        write_header_to_table(row_index,root_key_str,sub_key);
+        row_index++;
+        ui->autoruns_table->setRowCount(row_index + 1);
+    }
+
+    //一行行读出每个值
+    while (!map_value_data.empty())
+    {
+        QString entry,dll_name;
+        entry = charstr_to_QString(map_value_data.begin()->first);
+        dll_name = LPBYTE_to_QString(map_value_data.begin()->second);//.dll名字
+
+        //2路径imagepath：C:\Windows\SysWOW64、C:\Windows\system32
+        QString imagepath1,imagepath2;
+        imagepath1 = "C:\\Windows\\SysWOW64\\"+dll_name;
+        imagepath2 = "C:\\Windows\\system32\\"+dll_name;
+
+
+        write_item_to_table(row_index,entry,"","",imagepath1);
+        row_index++;
+        ui->autoruns_table->setRowCount(row_index + 1);
+
+        write_item_to_table(row_index,entry,"","",imagepath2);
+        row_index++;
+        ui->autoruns_table->setRowCount(row_index + 1);
+        
+        //删除第一个子键的<子键名，value>
+        map_value_data.erase(map_value_data.begin());
+    }
+        
+}
+
+
+
 /*
+使用的API：https://docs.microsoft.com/zh-cn/windows/win32/api/taskschd/nn-taskschd-itaskfolder
+使用范例：https://docs.microsoft.com/zh-cn/search/?terms=ITaskService&scope=Desktop
     为任务文件夹中的所有任务显示任务名称和状态：
         1 初始化 COM 并设置常规 COM 安全性。
         2 创建 ITaskService 对象：此对象允许连接到任务计划程序服务并访问特定的任务文件夹
@@ -148,7 +199,7 @@ void MainWindow::set_logon_table()
     LPCSTR sub_keys[] = {sub_key1,sub_key2,sub_key3,sub_key4,sub_key5,sub_key6,sub_key7,sub_key8};
 
     int row_index = ui->autoruns_table->rowCount();
-    cout<<row_index<<endl;
+    //cout<<row_index<<endl;
     ui->autoruns_table->setRowCount(row_index + 1);
     //cout << "total" << row_index << "rows" <<endl;
 
@@ -375,7 +426,7 @@ void MainWindow::set_services_table()
 
 }
 
-//和services几乎一样
+//和services几乎一样，但无共享服务
 void MainWindow::set_drivers_table()
 {
     HKEY root_key = HKEY_LOCAL_MACHINE;
@@ -527,8 +578,6 @@ void MainWindow::set_drivers_table()
 }
 
 
-
-
 // 行号:自启动项名，描述，签名者，可执行文件路径
 void MainWindow::write_item_to_table(int row_index,QString entry,QString description,QString publisher,QString imagepath)
 {
@@ -598,4 +647,11 @@ void MainWindow::on_schedule_task_clicked()
     ui->autoruns_table->clearContents();
     ui->autoruns_table->setRowCount(0);
     set_schedule_task_table();
+}
+
+void MainWindow::on_dlls_clicked()
+{
+    ui->autoruns_table->clearContents();
+    ui->autoruns_table->setRowCount(0);
+    set_dlls_table();
 }

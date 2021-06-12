@@ -61,7 +61,6 @@ TCHAR* char2TCHAR(const char* str)
 
     return retStr;
 }
-*/
 
 char* QString2char(QString qstr)
 {
@@ -70,6 +69,7 @@ char* QString2char(QString qstr)
     ch = byte.data();
     return ch;
 }
+*/
 
 TCHAR *CharToWchar(const QString &str)
 

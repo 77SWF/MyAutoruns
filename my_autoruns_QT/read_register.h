@@ -112,7 +112,7 @@ map<int, char*> read_subkey_name(HKEY root_key, LPCTSTR sub_key)
         KEY_READ, 
         &key_handle))
     {
-        \\cout<<"read reg"<<endl;
+        //cout<<"read reg"<<endl;
         DWORD dwIndex = 0, NameSize, NameCnt, NameMaxLen, Type;
         DWORD KeySize, KeyCnt, KeyMaxLen, DateSize, MaxDateLen;
 
