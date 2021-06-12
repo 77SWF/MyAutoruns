@@ -66,9 +66,9 @@ MainWindow::MainWindow(QWidget *parent)
     //char* time = get_timestamp(s);
     //qDebug()<<time;
     
-    //set_services_table();
+    set_services_table();
     //set_drivers_table();
-    set_schedule_task_table();
+    //set_schedule_task_table();
 }
 
 MainWindow::~MainWindow()
@@ -85,9 +85,6 @@ MainWindow::~MainWindow()
         3 获取包含所需信息的任务文件夹：使用 ITaskService：： GetFolder 方法获取文件夹。
         4 获取文件夹中的任务集合：使用 ITaskFolder：： taskcontroller 方法获取任务 (IRegisteredTaskCollection) 的集合。
         5 获取集合中的任务数，并枚举集合中的每个任务：使用 IRegisteredTaskCollection 的 Item 属性 获取 IRegisteredTask 实例。 每个实例都将包含集合中的任务。 然后，可以从每个已注册任务) (属性值显示信息。
-
-    递归读C:\Windows\System32\Tasks下的文件，但是结果与autoruns相比少了
-    如\Microsoft\Windows\CertificateServicesClient\UserTask的作业，尚未查到原理
 */
 void MainWindow::set_schedule_task_table()
 {
@@ -281,6 +278,14 @@ void MainWindow::set_services_table()
             {
                 LPBYTE data = (LPBYTE)map_service_value_data.begin()->second;
                 description = LPBYTE_to_QString(data);
+                if(description.startsWith("@"))
+                {
+                    format_description_path(&description);
+                    //description = "@"+description;
+                    //QString *content = new QString;
+                    format_description(description,&description);
+
+                }
             }
             
             //查路径
@@ -424,6 +429,11 @@ void MainWindow::set_drivers_table()
             {
                 LPBYTE data = (LPBYTE)map_service_value_data.begin()->second;
                 description = LPBYTE_to_QString(data);
+                if(description.startsWith("@"))
+                {
+                    format_description_path(&description);
+                    format_description(description,&description);
+                }
             }
             
             //查路径
