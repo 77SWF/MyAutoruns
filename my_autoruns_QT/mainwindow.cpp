@@ -91,18 +91,19 @@ MainWindow::~MainWindow()
 void MainWindow::set_schedule_task_table()
 {
     map<char*, char*> map_taskpath_imagepath;
-
+    /*
     HRESULT hr = CoInitialize(NULL);
     if( FAILED(hr) )
     {
         printf("\nCoInitializeEx failed: %x", hr );
         return;
     }
+    */
 
     int row_index = ui->autoruns_table->rowCount();
     ui->autoruns_table->setRowCount(row_index + 1);
 
-    map_taskpath_imagepath = read_schedule_task_folder(map_taskpath_imagepath);
+    read_schedule_task_folder(&map_taskpath_imagepath);
     while (!map_taskpath_imagepath.empty())
     {
         QString entry,imagepath;
@@ -126,7 +127,7 @@ void MainWindow::set_schedule_task_table()
     }
 
     //取消COM初始化
-    //CoUninitialize();
+    CoUninitialize();
 }
 
 //查找logon自启动项，显示到表中
@@ -457,7 +458,7 @@ void MainWindow::set_drivers_table()
                 若有，说明是共享服务，需要进一步获取真正的 `ImagePath` 代替在原服务子键下的值中取得的
                 不由上课讲的 `Type = 32` 是共享服务判断是因为查看注册表后，发现不只有这个类型的服务的可执行文件相同。
             */
-            /*  内核态无共享服务
+            /*  注释掉，内核态无共享服务
             map<int, char*> map_subkeynames_under_servicekey = read_subkey_name(root_key,service_subkey);
             for (map<int, char*>::iterator it = map_subkeynames_under_servicekey.begin(); it != map_subkeynames_under_servicekey.end(); ++it)
             {
