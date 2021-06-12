@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <Softpub.h>
 
+#include "str_convert.h"
+
 #include <vector>
 
 #include <comdef.h>
@@ -188,6 +190,18 @@ void format_imagepath(QString* value)
         *value = value->split("\"")[1];
     if(value->contains("%systemroot%", Qt::CaseInsensitive))
         *value = value->replace(value->indexOf("%systemroot%", 0, Qt::CaseInsensitive), 12, "C:\\Windows");
+    if(value->contains("%localappdata%", Qt::CaseInsensitive))
+    {
+        char* env_real;
+        env_real = getenv("localappdata");//和登录用户有关，不可手动设定
+        *value = value->replace(value->indexOf("%localappdata%", 0, Qt::CaseInsensitive), 14, env_real);
+    }
+    if(value->contains("%programfiles%", Qt::CaseInsensitive))
+    {
+        char* env_real;
+        env_real = getenv("programfiles");//和登录用户有关，不可手动设定
+        *value = value->replace(value->indexOf("%programfiles%", 0, Qt::CaseInsensitive), 14, env_real);
+    }
     if(value->contains("\\systemroot", Qt::CaseInsensitive))
         *value = value->replace(value->indexOf("\\systemroot", 0, Qt::CaseInsensitive), 11, "C:\\Windows");
     if(value->contains("%windir%", Qt::CaseInsensitive))
@@ -197,9 +211,9 @@ void format_imagepath(QString* value)
     if(!value->contains(":"))
     {
         if(value->contains("system32", Qt::CaseInsensitive))
-            *value = value->replace(value->indexOf("system32", 0, Qt::CaseInsensitive), 8, "c:\\Windows\\System32");
+            *value = value->replace(value->indexOf("system32", 0, Qt::CaseInsensitive), 8, "C:\\Windows\\System32");
         if(value->contains("syswow64", Qt::CaseInsensitive))
-            *value = value->replace(value->indexOf("syswow64", 0, Qt::CaseInsensitive), 8, "c:\\Windows\\SysWOW64");
+            *value = value->replace(value->indexOf("syswow64", 0, Qt::CaseInsensitive), 8, "C:\\Windows\\SysWOW64");
     }
 }
 
