@@ -6,6 +6,7 @@
 #include "check_PE_signature.h"
 #include "get_PE_publisher.h"
 #include "read_schedule_tasks.h"
+#include "format_something.h"
 //#include "read_register_service_drivers.h"
 
 #include <QDebug>

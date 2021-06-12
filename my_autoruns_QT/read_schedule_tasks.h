@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <Softpub.h>
 
+#include "format_something.h"
 #include "read_register.h"
 
 #include <vector>

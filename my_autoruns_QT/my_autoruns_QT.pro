@@ -21,6 +21,7 @@ SOURCES += \
 
 HEADERS += \
     check_PE_signature.h \
+    format_something.h \
     get_PE_publisher.h \
     mainwindow.h \
     read_register.h \
