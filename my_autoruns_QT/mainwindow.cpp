@@ -123,7 +123,7 @@ void MainWindow::set_dlls_table()
         QString publisher_qstr;
         publisher_qstr = QString::fromLocal8Bit(QByteArray::fromRawData(pub.c_str(), pub.size()));
 
-        verify_result = "("+verify_result+")";
+        if(verify_result!="") verify_result = "("+verify_result+")";
 
         write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath1);
         row_index++;
@@ -133,7 +133,7 @@ void MainWindow::set_dlls_table()
 
         publisher_qstr = QString::fromLocal8Bit(QByteArray::fromRawData(pub.c_str(), pub.size()));
 
-        verify_result = "("+verify_result+")";
+        if(verify_result!="") verify_result = "("+verify_result+")";
 
         write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath2);
         row_index++;
@@ -195,7 +195,7 @@ void MainWindow::set_schedule_task_table()
             if(is_or_not_verified) verify_result = "Verified";
             //else verify_result = "Not Verified";
         }
-        verify_result = "("+verify_result+")";
+        if(verify_result!="") verify_result = "("+verify_result+")";
 
         write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath);
         row_index++;
@@ -270,7 +270,7 @@ void MainWindow::set_logon_table()
                 //else verify_result = "Not Verified";
             }
 
-            verify_result = "("+verify_result+")";
+            if(verify_result!="") verify_result = "("+verify_result+")";
 
             write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath);
             row_index++;
@@ -407,7 +407,7 @@ void MainWindow::set_logon_table()
                 */
 
                 //write_item_to_table(row_index,entry,"",verify_result+publisher,imagepath);
-                verify_result = "("+verify_result+")";
+                if(verify_result!="") verify_result = "("+verify_result+")";
 
                 write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath);
                 row_index++;
@@ -575,7 +575,7 @@ void MainWindow::set_services_table()
 
             QString entry = QString::fromStdString(service_subkey_name);
 
-            verify_result = "("+verify_result+")";
+            if(verify_result!="") verify_result = "("+verify_result+")";
 
             write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath);
             row_index++;
@@ -736,7 +736,7 @@ void MainWindow::set_drivers_table()
 
             QString entry = QString::fromStdString(service_subkey_name);
 
-            verify_result = "("+verify_result+")";
+            if(verify_result!="") verify_result = "("+verify_result+")";
 
             write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath);
             row_index++;
