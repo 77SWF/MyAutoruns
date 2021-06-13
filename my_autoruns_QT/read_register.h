@@ -102,7 +102,7 @@ map<int, char*> read_subkey_name(HKEY root_key, LPCTSTR sub_key)
     HKEY key_handle;
     map<int, char*> subkey_names;//int:子键名
     int len = 0;
-    cout<< "begin read"<<endl;
+    //cout<< "begin read"<<endl;
 
     //如果读主键root_key下的子键sub_key打开成功
     if (ERROR_SUCCESS == RegOpenKeyEx(

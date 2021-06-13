@@ -10,10 +10,14 @@
 //#include "read_register_service_drivers.h"
 
 #include <QDebug>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QFileIconProvider>
 #include <QDateTime>
 #include <stdlib.h>
+
+//#include <CFileFind>
+
 
 #include <QString>
 
@@ -37,6 +41,8 @@
 #include <taskschd.h>
 
 
+
+
 #pragma comment(lib, "version.lib")
 #pragma comment(lib, "Crypt32.lib")
 #pragma comment(lib, "Wintrust.lib")
@@ -54,8 +60,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->autoruns_table->setColumnWidth(0, 10);
     ui->autoruns_table->setColumnWidth(1, 180);
     ui->autoruns_table->setColumnWidth(2, 180);
-    ui->autoruns_table->setColumnWidth(3, 180);
-    ui->autoruns_table->setColumnWidth(4, 600);
+    ui->autoruns_table->setColumnWidth(3, 130);
+    ui->autoruns_table->setColumnWidth(4, 700);
     ui->autoruns_table->setColumnWidth(5, 180);
 
     //logon自启动项
@@ -65,10 +71,10 @@ MainWindow::MainWindow(QWidget *parent)
     //LPCWSTR s = (LPCWSTR)"c:\\program files (x86)\\common files\\adobe\\adobe desktop common\\elevationmanager\\adobeupdateservice.exe";
     //char* time = get_timestamp(s);
     //qDebug()<<time;
-    
+
     //set_services_table();
     //set_drivers_table();
-    //set_schedule_task_table(); 
+    //set_schedule_task_table();
     //set_dlls_table();
 }
 
@@ -118,11 +124,11 @@ void MainWindow::set_dlls_table()
         write_item_to_table(row_index,entry,"","",imagepath2);
         row_index++;
         ui->autoruns_table->setRowCount(row_index + 1);
-        
+
         //删除第一个子键的<子键名，value>
         map_value_data.erase(map_value_data.begin());
     }
-        
+
 }
 
 
@@ -186,6 +192,105 @@ void MainWindow::set_schedule_task_table()
 //查找logon自启动项，显示到表中
 void MainWindow::set_logon_table()
 {
+    int row_index = ui->autoruns_table->rowCount();
+    //cout<<row_index<<endl;
+    ui->autoruns_table->setRowCount(row_index + 1);
+    //cout << "total" << row_index << "rows" <<endl;
+
+
+    /*
+        查找自启动目录
+    */
+    char* env1,*env2;
+    env1 = getenv("USERPROFILE");
+    env2 = getenv("ProgramData");
+
+    QString path1 = charstr_to_QString(env1) + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup";
+    QString path2= charstr_to_QString(env2) + "\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp";
+
+    QString paths[] = {path1,path2};
+
+    // 获取所有文件名
+    for(int i=0;i<2;i++)
+    {
+        QDir *dir=new QDir(paths[i]);
+        if (!dir->exists())
+            qDebug()<<"no files";
+        dir->setFilter(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot);
+        QFileInfoList list = dir->entryInfoList();
+
+        if(list.size() == 0)
+        {
+            qDebug()<<"no files";
+            break;
+        }
+
+        //画表：注册表子键头部
+        write_header_to_table(row_index,"",paths[i]);
+        row_index++;
+        ui->autoruns_table->setRowCount(row_index + 1);
+
+        for(int i = 0; i < list.size(); i++)
+        {
+            QString entry,imagepath;
+            entry = list.at(i).fileName();
+            imagepath = list.at(i).filePath();
+
+            QString verify_result;
+            if (imagepath.endsWith("exe") )
+            {
+                bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
+                if(is_or_not_verified) verify_result = "Verified";
+                else verify_result = "Not Verified";
+            }
+            else verify_result = "";
+
+            write_item_to_table(row_index,entry,"",verify_result,imagepath);
+            row_index++;
+            ui->autoruns_table->setRowCount(row_index + 1);
+        }
+    }
+
+
+
+
+    /*和Windows.h头文件冲突
+    for(int i = 0;1<2;i++)//两个目录
+    {
+        CFileFind read_folder_finder;
+        CString file_name,file_path;
+        bool is_find_success = read_folder_finder.FindFile(paths[i].toStdString().c_str());
+
+        //读到一个文件
+        while(is_find_success)
+        {
+            file_name = read_folder_finder.GetFileName();//文件名
+            //隐藏文件 dir /a可见
+            if(file_name!="." && file_name!=".." && file_name != "desktop.ini")
+            {
+                file_path = read_folder_finder.GetFilePath();
+
+                //QString file_name_qstr = CS2QS(file_name);
+
+                write_item_to_table(row_index,file_name,"","",file_path);
+                row_index++;
+                ui->autoruns_table->setRowCount(row_index + 1);
+            }
+        }
+
+        read_folder_finder.Close();
+
+    }
+    */
+
+
+
+
+
+
+    /*
+        查找注册表
+    */
     //cout<<"here"<<endl;
     HKEY HKLM_root_key = HKEY_LOCAL_MACHINE;//HKLM
     HKEY HKCU_root_key = HKEY_CURRENT_USER;//HKCU，两个主键下的以下子键都有
@@ -201,11 +306,6 @@ void MainWindow::set_logon_table()
     LPCSTR sub_key8 = "SYSTEM\\CurrentControlSet\\Control\\SafeBoot\\AlternateShell";
     //所有子键
     LPCSTR sub_keys[] = {sub_key1,sub_key2,sub_key3,sub_key4,sub_key5,sub_key6,sub_key7,sub_key8};
-
-    int row_index = ui->autoruns_table->rowCount();
-    //cout<<row_index<<endl;
-    ui->autoruns_table->setRowCount(row_index + 1);
-    //cout << "total" << row_index << "rows" <<endl;
 
     for(int j = 0;j<2;j++)
     {
@@ -290,12 +390,12 @@ void MainWindow::set_services_table()
 {
     HKEY root_key = HKEY_LOCAL_MACHINE;
     LPCSTR sub_key = "SYSTEM\\CurrentControlSet\\Services";
-    cout<<"begin"<<endl;
+    //cout<<"begin"<<endl;
     map<int, char*> map_int_subkey_name = read_subkey_name(root_key,sub_key);
-    cout<<"end"<<endl;
+    //cout<<"end"<<endl;
 
     int row_index = ui->autoruns_table->rowCount();
-    cout<<row_index<<endl;
+    //cout<<row_index<<endl;
     ui->autoruns_table->setRowCount(row_index + 1);
 
     //画表：注册表子键头部
@@ -351,7 +451,7 @@ void MainWindow::set_services_table()
 
                 }
             }
-            
+
             //查路径
             if(strcmp((char*)map_service_value_data.begin()->first,value_name_ImagePath) == 0)
             {
@@ -449,12 +549,12 @@ void MainWindow::set_drivers_table()
 {
     HKEY root_key = HKEY_LOCAL_MACHINE;
     LPCSTR sub_key = "SYSTEM\\CurrentControlSet\\Services";
-    cout<<"begin"<<endl;
+    //cout<<"begin"<<endl;
     map<int, char*> map_int_subkey_name = read_subkey_name(root_key,sub_key);
-    cout<<"end"<<endl;
+    //cout<<"end"<<endl;
 
     int row_index = ui->autoruns_table->rowCount();
-    cout<<row_index<<endl;
+    //cout<<row_index<<endl;
     ui->autoruns_table->setRowCount(row_index + 1);
 
     //画表：注册表子键头部
@@ -504,7 +604,7 @@ void MainWindow::set_drivers_table()
                     format_description(description,&description);
                 }
             }
-            
+
             //查路径
             if(strcmp((char*)map_service_value_data.begin()->first,value_name_ImagePath) == 0)
             {
@@ -618,16 +718,16 @@ void MainWindow::write_item_to_table(int row_index,QString entry,QString descrip
     QTableWidgetItem* imagepath_item = new QTableWidgetItem(imagepath);
     ui->autoruns_table->setItem(row_index, 4, imagepath_item);
 
-    //timestamp
-    QFileInfo fileInfo(imagepath);
-    QDateTime file_create_datetime = fileInfo.created();
+    //文件创建时间
+    QFileInfo file_info(imagepath);
+    QDateTime file_create_datetime = file_info.created();
     QString file_create_time = QObject::tr("%1").arg(file_create_datetime.toString("yyyy-MM-dd hh:mm:ss"));
     QTableWidgetItem* timestamp_item = new QTableWidgetItem(file_create_time);
     ui->autoruns_table->setItem(row_index, 5, timestamp_item);
 
     //图标
-    QFileIconProvider fileIcon;
-    QIcon icon = fileIcon.icon(fileInfo);
+    QFileIconProvider file_icon;
+    QIcon icon = file_icon.icon(file_info);
     QTableWidgetItem* icon_item = new QTableWidgetItem;
     icon_item->setIcon(icon);
     ui->autoruns_table->setItem(row_index, 0, icon_item);

@@ -115,7 +115,7 @@ public:
 
     void retranslateUi(QMainWindow *MainWindow)
     {
-        MainWindow->setWindowTitle(QCoreApplication::translate("MainWindow", "MainWindow", nullptr));
+        MainWindow->setWindowTitle(QCoreApplication::translate("MainWindow", "MyAutoruns", nullptr));
         QTableWidgetItem *___qtablewidgetitem = autoruns_table->horizontalHeaderItem(1);
         ___qtablewidgetitem->setText(QCoreApplication::translate("MainWindow", "Autorun Entry", nullptr));
         QTableWidgetItem *___qtablewidgetitem1 = autoruns_table->horizontalHeaderItem(2);

@@ -442,9 +442,4 @@ map<char*, char*> read_schedule_task_folder(map<char*, char*> *map_taskpath_imag
 
 
 
-
-
-
-
-
 #endif // READ_SCHEDULE_TASKS_H

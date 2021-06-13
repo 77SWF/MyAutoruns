@@ -220,27 +220,14 @@ BOOL VerifyEmbeddedSignature(LPCWSTR pwszSourceFile)
  * or FITNESS FOR A PARTICULAR PURPOSE.
  * 
  */
-
-
-
-
-
-
-
 #define _WIN32_WINNT 0x0500
 #define WINVER       0x0500
-
-
-
 
 #include <windows.h>
 #include <Softpub.h>
 #include <Wincrypt.h>
 #include <tchar.h>
 #include <stdlib.h>
-
-
-
 
 #pragma comment(lib, "Crypt32.lib")
 #pragma comment(lib, "Wintrust.lib")
@@ -316,7 +303,7 @@ int verify(LPCWSTR file_path)
 
 
 
-
+/*
    if (TRUST_E_NOSIGNATURE == hr)
    {
       _tprintf(_T("No signature found on the file.\n"));
@@ -336,73 +323,75 @@ int verify(LPCWSTR file_path)
    else
    {//验证成功？
       _tprintf(_T("File signature is OK.\n"));
+*/
 
 
-      // retreive the signer certificate and display its information
-      CRYPT_PROVIDER_DATA const *psProvData     = NULL;
-      CRYPT_PROVIDER_SGNR       *psProvSigner   = NULL;
-      CRYPT_PROVIDER_CERT       *psProvCert     = NULL;
-      FILETIME                   localFt;
-      SYSTEMTIME                 sysTime;
+    // retreive the signer certificate and display its information
+    CRYPT_PROVIDER_DATA const *psProvData     = NULL;
+    CRYPT_PROVIDER_SGNR       *psProvSigner   = NULL;
+    CRYPT_PROVIDER_CERT       *psProvCert     = NULL;
+    FILETIME                   localFt;
+    SYSTEMTIME                 sysTime;
 
 
 
 
-      psProvData = WTHelperProvDataFromStateData(sWintrustData.hWVTStateData);
-      if (psProvData)
-      {
-         psProvSigner = WTHelperGetProvSignerFromChain((PCRYPT_PROVIDER_DATA)psProvData, 0 , FALSE, 0);
-         if (psProvSigner)
-         {
-            FileTimeToLocalFileTime(&psProvSigner->sftVerifyAsOf, &localFt);
+    psProvData = WTHelperProvDataFromStateData(sWintrustData.hWVTStateData);
+    if (psProvData)
+    {
+        psProvSigner = WTHelperGetProvSignerFromChain((PCRYPT_PROVIDER_DATA)psProvData, 0 , FALSE, 0);
+        if (psProvSigner)
+        {
+        FileTimeToLocalFileTime(&psProvSigner->sftVerifyAsOf, &localFt);
+        FileTimeToSystemTime(&localFt, &sysTime);
+
+
+
+
+        _tprintf(_T("Signature Date = %.2d/%.2d/%.4d at %.2d:%2.d:%.2d\n"), sysTime.wDay, sysTime.wMonth,sysTime.wYear, sysTime.wHour,sysTime.wMinute,sysTime.wSecond);
+
+
+
+
+        psProvCert = WTHelperGetProvCertFromChain(psProvSigner, 0);
+        if (psProvCert)
+        {
+            LPTSTR szCertDesc = GetCertificateDescription(psProvCert->pCert);
+            if (szCertDesc)
+            {
+                _tprintf(_T("File Signer = %s\n"), szCertDesc);
+                LocalFree(szCertDesc);
+            }
+        }
+
+
+
+
+        if (psProvSigner->csCounterSigners)
+        {
+            _tprintf(_T("\n"));
+            // Timestamp information
+            FileTimeToLocalFileTime(&psProvSigner->pasCounterSigners[0].sftVerifyAsOf, &localFt);
             FileTimeToSystemTime(&localFt, &sysTime);
 
 
-
-
-            _tprintf(_T("Signature Date = %.2d/%.2d/%.4d at %.2d:%2.d:%.2d\n"), sysTime.wDay, sysTime.wMonth,sysTime.wYear, sysTime.wHour,sysTime.wMinute,sysTime.wSecond);
-
-
-
-
-            psProvCert = WTHelperGetProvCertFromChain(psProvSigner, 0);
+            _tprintf(_T("Timestamp Date = %.2d/%.2d/%.4d at %.2d:%2.d:%.2d\n"), sysTime.wDay, sysTime.wMonth,sysTime.wYear, sysTime.wHour,sysTime.wMinute,sysTime.wSecond);               
+            psProvCert = WTHelperGetProvCertFromChain(&psProvSigner->pasCounterSigners[0], 0);
             if (psProvCert)
             {
-               LPTSTR szCertDesc = GetCertificateDescription(psProvCert->pCert);
-               if (szCertDesc)
-               {
-                  _tprintf(_T("File Signer = %s\n"), szCertDesc);
-                  LocalFree(szCertDesc);
-               }
+                LPTSTR szCertDesc = GetCertificateDescription(psProvCert->pCert);
+                if (szCertDesc)
+                {
+                    _tprintf(_T("Timestamp Signer = %s\n"), szCertDesc);
+                    LocalFree(szCertDesc);
+                }
             }
-
-
-
-
-            if (psProvSigner->csCounterSigners)
-            {
-               _tprintf(_T("\n"));
-               // Timestamp information
-               FileTimeToLocalFileTime(&psProvSigner->pasCounterSigners[0].sftVerifyAsOf, &localFt);
-               FileTimeToSystemTime(&localFt, &sysTime);
-
-
-               _tprintf(_T("Timestamp Date = %.2d/%.2d/%.4d at %.2d:%2.d:%.2d\n"), sysTime.wDay, sysTime.wMonth,sysTime.wYear, sysTime.wHour,sysTime.wMinute,sysTime.wSecond);               
-               psProvCert = WTHelperGetProvCertFromChain(&psProvSigner->pasCounterSigners[0], 0);
-               if (psProvCert)
-               {
-                  LPTSTR szCertDesc = GetCertificateDescription(psProvCert->pCert);
-                  if (szCertDesc)
-                  {
-                     _tprintf(_T("Timestamp Signer = %s\n"), szCertDesc);
-                     LocalFree(szCertDesc);
-                  }
-               }
-            }
-         }
-      }
-      return 1;
-   }
+        }
+        }
+        return 1;
+    }
+    
+   //}
    
    sWintrustData.dwUIChoice = WTD_UI_NONE;
    sWintrustData.dwStateAction = WTD_STATEACTION_CLOSE;
