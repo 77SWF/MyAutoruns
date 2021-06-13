@@ -116,12 +116,26 @@ void MainWindow::set_dlls_table()
         imagepath1 = "C:\\Windows\\SysWOW64\\"+dll_name;
         imagepath2 = "C:\\Windows\\system32\\"+dll_name;
 
+        QString verify_result;
 
-        write_item_to_table(row_index,entry,"","",imagepath1);
+        std:string pub;
+        get_publisher(imagepath1.toStdWString().c_str(),&verify_result,&pub);
+        QString publisher_qstr;
+        publisher_qstr = QString::fromLocal8Bit(QByteArray::fromRawData(pub.c_str(), pub.size()));
+
+        verify_result = "("+verify_result+")";
+
+        write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath1);
         row_index++;
         ui->autoruns_table->setRowCount(row_index + 1);
 
-        write_item_to_table(row_index,entry,"","",imagepath2);
+        get_publisher(imagepath2.toStdWString().c_str(),&verify_result,&pub);
+
+        publisher_qstr = QString::fromLocal8Bit(QByteArray::fromRawData(pub.c_str(), pub.size()));
+
+        verify_result = "("+verify_result+")";
+
+        write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath2);
         row_index++;
         ui->autoruns_table->setRowCount(row_index + 1);
 
@@ -169,15 +183,21 @@ void MainWindow::set_schedule_task_table()
         format_imagepath(&imagepath);
 
         QString verify_result;
-        if (imagepath.endsWith("exe") )
+
+        std:string pub;
+        get_publisher(imagepath.toStdWString().c_str(),&verify_result,&pub);
+        QString publisher_qstr;
+        publisher_qstr = QString::fromLocal8Bit(QByteArray::fromRawData(pub.c_str(), pub.size()));
+
+        if (imagepath.endsWith("exe") && verify_result!="Verified" )//验证不通过的exe在用这个函数验证一遍
         {
             bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
             if(is_or_not_verified) verify_result = "Verified";
-            else verify_result = "Not Verified";
+            //else verify_result = "Not Verified";
         }
-        else verify_result = "";
+        verify_result = "("+verify_result+")";
 
-        write_item_to_table(row_index,entry,"",verify_result,imagepath);
+        write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath);
         row_index++;
         ui->autoruns_table->setRowCount(row_index + 1);
 
@@ -237,15 +257,22 @@ void MainWindow::set_logon_table()
             imagepath = list.at(i).filePath();
 
             QString verify_result;
-            if (imagepath.endsWith("exe") )
+
+            std:string pub;
+            get_publisher(imagepath.toStdWString().c_str(),&verify_result,&pub);
+            QString publisher_qstr;
+            publisher_qstr = QString::fromLocal8Bit(QByteArray::fromRawData(pub.c_str(), pub.size()));
+
+            if (imagepath.endsWith("exe") && verify_result!="Verified" )//验证不通过的exe在用这个函数验证一遍
             {
                 bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
                 if(is_or_not_verified) verify_result = "Verified";
-                else verify_result = "Not Verified";
+                //else verify_result = "Not Verified";
             }
-            else verify_result = "";
 
-            write_item_to_table(row_index,entry,"",verify_result,imagepath);
+            verify_result = "("+verify_result+")";
+
+            write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath);
             row_index++;
             ui->autoruns_table->setRowCount(row_index + 1);
         }
@@ -328,6 +355,7 @@ void MainWindow::set_logon_table()
 
 
             //如果map非空，一行行读出每个值的信息
+            string pub;
             while (!map_value_data.empty())
             {
                 QString entry,imagepath;
@@ -343,18 +371,23 @@ void MainWindow::set_logon_table()
                 //只能用imagepath.toStdWString().c_str()，用QString_to_LPCWSTR()无效
                 //参数类型：LPCWSTR
                 QString verify_result;
-                if (imagepath.endsWith("exe") )
+
+
+                get_publisher(imagepath.toStdWString().c_str(),&verify_result,&pub);
+                QString publisher_qstr;
+                publisher_qstr = QString::fromLocal8Bit(QByteArray::fromRawData(pub.c_str(), pub.size()));
+
+                if (imagepath.endsWith("exe") && verify_result!="Verified" )//验证不通过的exe在用这个函数验证一遍
                 {
                     bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
                     if(is_or_not_verified) verify_result = "Verified";
-                    else verify_result = "Not Verified";
+                    //else verify_result = "Not Verified";
                 }
-                else verify_result = "";
+                //else verify_result = "";
 
 
                 //测试另一种验证 无效
                 //bool re = verify(imagepath.toStdWString().c_str());
-                //qDebug()<<re;
 
                 //获得publisher
 
@@ -374,7 +407,9 @@ void MainWindow::set_logon_table()
                 */
 
                 //write_item_to_table(row_index,entry,"",verify_result+publisher,imagepath);
-                write_item_to_table(row_index,entry,"",verify_result,imagepath);
+                verify_result = "("+verify_result+")";
+
+                write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath);
                 row_index++;
                 ui->autoruns_table->setRowCount(row_index + 1);
 
@@ -525,17 +560,24 @@ void MainWindow::set_services_table()
 
             //签名验证结果
             QString verify_result;
-            if (imagepath.endsWith("exe") )
+
+            std:string pub;
+            get_publisher(imagepath.toStdWString().c_str(),&verify_result,&pub);
+            QString publisher_qstr;
+            publisher_qstr = QString::fromLocal8Bit(QByteArray::fromRawData(pub.c_str(), pub.size()));
+
+            if (imagepath.endsWith("exe") && verify_result!="Verified" )//验证不通过的exe在用这个函数验证一遍
             {
                 bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
                 if(is_or_not_verified) verify_result = "Verified";
-                else verify_result = "Not Verified";
+                //else verify_result = "Not Verified";
             }
-            else verify_result = "";
 
             QString entry = QString::fromStdString(service_subkey_name);
 
-            write_item_to_table(row_index,entry,description,verify_result,imagepath);
+            verify_result = "("+verify_result+")";
+
+            write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath);
             row_index++;
             ui->autoruns_table->setRowCount(row_index + 1);
 
@@ -680,17 +722,23 @@ void MainWindow::set_drivers_table()
             */
 
             //签名验证结果
-            if (imagepath.endsWith("exe") )
+            std:string pub;
+            get_publisher(imagepath.toStdWString().c_str(),&verify_result,&pub);
+            QString publisher_qstr;
+            publisher_qstr = QString::fromLocal8Bit(QByteArray::fromRawData(pub.c_str(), pub.size()));
+
+            if (imagepath.endsWith("exe") && verify_result!="Verified" )//验证不通过的exe在用这个函数验证一遍
             {
                 bool is_or_not_verified = VerifyEmbeddedSignature(imagepath.toStdWString().c_str());
                 if(is_or_not_verified) verify_result = "Verified";
-                else verify_result = "Not Verified";
+                //else verify_result = "Not Verified";
             }
-            else verify_result = "";
 
             QString entry = QString::fromStdString(service_subkey_name);
 
-            write_item_to_table(row_index,entry,description,verify_result,imagepath);
+            verify_result = "("+verify_result+")";
+
+            write_item_to_table(row_index,entry,"",verify_result+publisher_qstr,imagepath);
             row_index++;
             ui->autoruns_table->setRowCount(row_index + 1);
 

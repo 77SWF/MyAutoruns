@@ -17,6 +17,180 @@
 #include <wintrust.h>
 #include <softpub.h>
 
+
+#pragma comment(lib, "Crypt32.lib")
+#pragma comment(lib, "Wintrust.lib")
+
+LPTSTR GetCertificateDescription(PCCERT_CONTEXT pCertCtx)
+{
+    DWORD dwStrType;
+    DWORD dwCount;
+    LPTSTR szSubjectRDN = NULL;
+
+    dwStrType = CERT_X500_NAME_STR;
+    dwCount = CertGetNameString(pCertCtx,
+        CERT_NAME_RDN_TYPE,
+        0,
+        &dwStrType,
+        NULL,
+        0);
+    if (dwCount)
+    {
+        szSubjectRDN = (LPTSTR)LocalAlloc(0, dwCount * sizeof(TCHAR));
+        CertGetNameString(pCertCtx,
+            CERT_NAME_RDN_TYPE,
+            0,
+            &dwStrType,
+            szSubjectRDN,
+            dwCount);
+    }
+
+    return szSubjectRDN;
+}
+
+//以下2函数的可以验证部分和获取部分publisher
+void splitstring(const std::string& s, std::vector<std::string>& v, const std::string& c)
+{
+    std::string::size_type pos1, pos2;
+    pos2 = s.find(c);
+    pos1 = 0;
+    while (std::string::npos != pos2)
+    {
+        v.push_back(s.substr(pos1, pos2 - pos1));
+
+        pos1 = pos2 + c.size();
+        pos2 = s.find(c, pos1);
+    }
+    if (pos1 != s.length())
+        v.push_back(s.substr(pos1));
+}
+
+void get_publisher(LPCWSTR path,QString* is_verified,std::string *pub)
+{
+	GUID guidAction = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+	WINTRUST_FILE_INFO sWintrustFileInfo;
+	WINTRUST_DATA      sWintrustData;
+	HRESULT            hr;
+
+    vector<std::string> v;
+
+	memset((void*)&sWintrustFileInfo, 0x00, sizeof(WINTRUST_FILE_INFO));
+	memset((void*)&sWintrustData, 0x00, sizeof(WINTRUST_DATA));
+
+	sWintrustFileInfo.cbStruct = sizeof(WINTRUST_FILE_INFO);
+	sWintrustFileInfo.pcwszFilePath = path;
+	sWintrustFileInfo.hFile = NULL;
+
+	sWintrustData.cbStruct = sizeof(WINTRUST_DATA);
+	sWintrustData.dwUIChoice = WTD_UI_NONE;
+	sWintrustData.fdwRevocationChecks = WTD_REVOKE_NONE;
+	sWintrustData.dwUnionChoice = WTD_CHOICE_FILE;
+	sWintrustData.pFile = &sWintrustFileInfo;
+	sWintrustData.dwStateAction = WTD_STATEACTION_VERIFY;
+
+	hr = WinVerifyTrust((HWND)INVALID_HANDLE_VALUE, &guidAction, &sWintrustData);
+
+	if (TRUST_E_NOSIGNATURE == hr)
+	{
+        *is_verified = "No signature";
+		_tprintf(_T("No signature found on the file.\n"));
+	}
+	else if (TRUST_E_BAD_DIGEST == hr)
+	{
+        *is_verified = "invalid signature";
+		_tprintf(_T("The signature of the file is invalid\n"));
+	}
+	else if (TRUST_E_PROVIDER_UNKNOWN == hr)
+	{
+        *is_verified = "No trust provider can verify";
+		_tprintf(_T("No trust provider on this machine can verify this type of files.\n"));
+	}
+	else if (S_OK != hr)
+	{
+        *is_verified = "";
+		_tprintf(_T("WinVerifyTrust failed with error 0x%.8X\n"), hr);
+	}
+	else
+	{
+
+        *is_verified = "Verified";
+		_tprintf(_T("File signature is OK.\n"));
+
+		// retreive the signer certificate and display its information
+		CRYPT_PROVIDER_DATA const* psProvData = NULL;
+		CRYPT_PROVIDER_SGNR* psProvSigner = NULL;
+		CRYPT_PROVIDER_CERT* psProvCert = NULL;
+		FILETIME                   localFt;
+		SYSTEMTIME                 sysTime;
+
+		psProvData = WTHelperProvDataFromStateData(sWintrustData.hWVTStateData);
+		if (psProvData)
+		{
+			psProvSigner = WTHelperGetProvSignerFromChain((PCRYPT_PROVIDER_DATA)psProvData, 0, FALSE, 0);
+			if (psProvSigner)
+			{
+				FileTimeToLocalFileTime(&psProvSigner->sftVerifyAsOf, &localFt);
+				FileTimeToSystemTime(&localFt, &sysTime);
+				//_tprintf(_T("Signature Date = %.2d/%.2d/%.4d at %.2d:%2.d:%.2d\n"), sysTime.wDay, sysTime.wMonth, sysTime.wYear, sysTime.wHour, sysTime.wMinute, sysTime.wSecond);
+
+				psProvCert = WTHelperGetProvCertFromChain(psProvSigner, 0);
+				if (psProvCert)
+				{
+					LPTSTR szCertDesc = GetCertificateDescription(psProvCert->pCert);
+					if (szCertDesc)
+					{
+						//_tprintf(_T("File Signer = %s\n"), szCertDesc);
+						string CN = szCertDesc;
+                        cout << CN;
+
+						splitstring(CN, v, "CN=");
+                        cout << v[1]<<endl;
+                        *pub = v[1];
+
+                        //cout<<typeid(v[1])<<"--------------"<<endl;
+
+						LocalFree(szCertDesc);
+						if (v.size() == 2)
+                            cout<< v[1];
+					}
+				}
+
+				//if (psProvSigner->csCounterSigners)
+				//{
+				//	_tprintf(_T("\n"));
+				//	// Timestamp information
+				//	FileTimeToLocalFileTime(&psProvSigner->pasCounterSigners[0].sftVerifyAsOf, &localFt);
+				//	FileTimeToSystemTime(&localFt, &sysTime);
+				//	char  timesmp[1000];
+				//	//_tprintf(_T("Timestamp Date = %.2d/%.2d/%.4d at %.2d:%2.d:%.2d\n"), sysTime.wDay, sysTime.wMonth, sysTime.wYear, sysTime.wHour, sysTime.wMinute, sysTime.wSecond);
+				//	sprintf(timesmp, ("%.2d/%.2d/%.4d at %.2d:%2.d:%.2d\n"), sysTime.wDay, sysTime.wMonth, sysTime.wYear, sysTime.wHour, sysTime.wMinute, sysTime.wSecond);
+				//	cout << timesmp;
+				//	return timesmp;
+				//	psProvCert = WTHelperGetProvCertFromChain(&psProvSigner->pasCounterSigners[0], 0);
+				//	if (psProvCert)
+				//	{
+				//		LPTSTR szCertDesc = GetCertificateDescription(psProvCert->pCert);
+				//		if (szCertDesc)
+				//		{
+				//			_tprintf(_T("Timestamp Signer = %s\n"), szCertDesc);
+				//			LocalFree(szCertDesc);
+				//		}
+				//	}
+				//}
+			}
+		}
+	}
+
+	sWintrustData.dwUIChoice = WTD_UI_NONE;
+	sWintrustData.dwStateAction = WTD_STATEACTION_CLOSE;
+	WinVerifyTrust((HWND)INVALID_HANDLE_VALUE, &guidAction, &sWintrustData);
+
+    if(*is_verified != "Verified") *pub = "";
+}
+
+
+
+//以下函数只能验证PE文件签名，且只有logon里的PE文件比较准确
 // Link with the Wintrust.lib file.
 //https://docs.microsoft.com/zh-cn/windows/win32/seccrypto/example-c-program--verifying-the-signature-of-a-pe-file
 BOOL VerifyEmbeddedSignature(LPCWSTR pwszSourceFile)
@@ -205,201 +379,4 @@ BOOL VerifyEmbeddedSignature(LPCWSTR pwszSourceFile)
 }
 
 
-
-
-
-
-/*
- * An example of file signature verification using WinTrust API
- * Derived from the sample vertrust.cpp in the Platform SDK
- *
- * Copyright (c) 2009 Mounir IDRASSI <mounir.idrassi@idrix.fr>. All rights reserved.
- *
- * This program is distributed in the hope that it will be useful, 
- * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
- * or FITNESS FOR A PARTICULAR PURPOSE.
- * 
- */
-#define _WIN32_WINNT 0x0500
-#define WINVER       0x0500
-
-#include <windows.h>
-#include <Softpub.h>
-#include <Wincrypt.h>
-#include <tchar.h>
-#include <stdlib.h>
-
-#pragma comment(lib, "Crypt32.lib")
-#pragma comment(lib, "Wintrust.lib")
-
-
-//以下函数无效
-
-LPTSTR GetCertificateDescription(PCCERT_CONTEXT pCertCtx)
-{
-   DWORD dwStrType;
-   DWORD dwCount;
-   LPTSTR szSubjectRDN = NULL;
-
-
-
-
-   dwStrType = CERT_X500_NAME_STR;
-   dwCount = CertGetNameString(pCertCtx,
-      CERT_NAME_RDN_TYPE,
-      0,
-      &dwStrType,
-      NULL,
-      0);
-   if (dwCount)
-   {
-      szSubjectRDN = (LPTSTR) LocalAlloc(0, dwCount * sizeof(TCHAR));
-      CertGetNameString(pCertCtx,
-         CERT_NAME_RDN_TYPE,
-         0,
-         &dwStrType,
-         szSubjectRDN,
-         dwCount);
-   }
-
-
-
-
-   return szSubjectRDN;
-}
-
-
-int verify(LPCWSTR file_path)
-{
-   GUID guidAction = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-   WINTRUST_FILE_INFO sWintrustFileInfo;
-   WINTRUST_DATA      sWintrustData;
-   HRESULT            hr;
-
-   memset((void*)&sWintrustFileInfo, 0x00, sizeof(WINTRUST_FILE_INFO));
-   memset((void*)&sWintrustData, 0x00, sizeof(WINTRUST_DATA));
-
-
-
-
-   sWintrustFileInfo.cbStruct = sizeof(WINTRUST_FILE_INFO);
-   sWintrustFileInfo.pcwszFilePath = file_path;
-   sWintrustFileInfo.hFile = NULL;
-
-
-
-
-   sWintrustData.cbStruct            = sizeof(WINTRUST_DATA);
-   sWintrustData.dwUIChoice          = WTD_UI_NONE;
-   sWintrustData.fdwRevocationChecks = WTD_REVOKE_NONE;
-   sWintrustData.dwUnionChoice       = WTD_CHOICE_FILE;
-   sWintrustData.pFile               = &sWintrustFileInfo;
-   sWintrustData.dwStateAction       = WTD_STATEACTION_VERIFY;
-
-
-
-
-   hr = WinVerifyTrust((HWND)INVALID_HANDLE_VALUE, &guidAction, &sWintrustData);
-
-
-
-/*
-   if (TRUST_E_NOSIGNATURE == hr)
-   {
-      _tprintf(_T("No signature found on the file.\n"));
-   }
-   else if (TRUST_E_BAD_DIGEST == hr)
-   {
-      _tprintf(_T("The signature of the file is invalid\n"));
-   }
-   else if (TRUST_E_PROVIDER_UNKNOWN == hr)
-   {
-      _tprintf(_T("No trust provider on this machine can verify this type of files.\n"));
-   }
-   else if (S_OK != hr)
-   {
-      _tprintf(_T("WinVerifyTrust failed with error 0x%.8X\n"), hr);
-   }
-   else
-   {//验证成功？
-      _tprintf(_T("File signature is OK.\n"));
-*/
-
-
-    // retreive the signer certificate and display its information
-    CRYPT_PROVIDER_DATA const *psProvData     = NULL;
-    CRYPT_PROVIDER_SGNR       *psProvSigner   = NULL;
-    CRYPT_PROVIDER_CERT       *psProvCert     = NULL;
-    FILETIME                   localFt;
-    SYSTEMTIME                 sysTime;
-
-
-
-
-    psProvData = WTHelperProvDataFromStateData(sWintrustData.hWVTStateData);
-    if (psProvData)
-    {
-        psProvSigner = WTHelperGetProvSignerFromChain((PCRYPT_PROVIDER_DATA)psProvData, 0 , FALSE, 0);
-        if (psProvSigner)
-        {
-        FileTimeToLocalFileTime(&psProvSigner->sftVerifyAsOf, &localFt);
-        FileTimeToSystemTime(&localFt, &sysTime);
-
-
-
-
-        _tprintf(_T("Signature Date = %.2d/%.2d/%.4d at %.2d:%2.d:%.2d\n"), sysTime.wDay, sysTime.wMonth,sysTime.wYear, sysTime.wHour,sysTime.wMinute,sysTime.wSecond);
-
-
-
-
-        psProvCert = WTHelperGetProvCertFromChain(psProvSigner, 0);
-        if (psProvCert)
-        {
-            LPTSTR szCertDesc = GetCertificateDescription(psProvCert->pCert);
-            if (szCertDesc)
-            {
-                _tprintf(_T("File Signer = %s\n"), szCertDesc);
-                LocalFree(szCertDesc);
-            }
-        }
-
-
-
-
-        if (psProvSigner->csCounterSigners)
-        {
-            _tprintf(_T("\n"));
-            // Timestamp information
-            FileTimeToLocalFileTime(&psProvSigner->pasCounterSigners[0].sftVerifyAsOf, &localFt);
-            FileTimeToSystemTime(&localFt, &sysTime);
-
-
-            _tprintf(_T("Timestamp Date = %.2d/%.2d/%.4d at %.2d:%2.d:%.2d\n"), sysTime.wDay, sysTime.wMonth,sysTime.wYear, sysTime.wHour,sysTime.wMinute,sysTime.wSecond);               
-            psProvCert = WTHelperGetProvCertFromChain(&psProvSigner->pasCounterSigners[0], 0);
-            if (psProvCert)
-            {
-                LPTSTR szCertDesc = GetCertificateDescription(psProvCert->pCert);
-                if (szCertDesc)
-                {
-                    _tprintf(_T("Timestamp Signer = %s\n"), szCertDesc);
-                    LocalFree(szCertDesc);
-                }
-            }
-        }
-        }
-        return 1;
-    }
-    
-   //}
-   
-   sWintrustData.dwUIChoice = WTD_UI_NONE;
-   sWintrustData.dwStateAction = WTD_STATEACTION_CLOSE;
-   WinVerifyTrust((HWND)INVALID_HANDLE_VALUE, &guidAction, &sWintrustData);
-
-
-
-
-return 0;
-}
 #endif // CHECK_PE_SIGNATURE_H
